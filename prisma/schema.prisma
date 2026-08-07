@@ -23,3 +23,56 @@ model Usuario {
 
   @@map("usuarios")
 }
+
+model Cliente {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+  creadoEn  DateTime  @default(now()) @map("creado_en")
+  bookings  Booking[]
+
+  @@map("clientes")
+}
+
+model Naviera {
+  id        Int       @id @default(autoincrement())
+  nombre    String    @unique
+  bookings  Booking[]
+
+  @@map("navieras")
+}
+
+model Booking {
+  id                 Int          @id @default(autoincrement())
+  bkgNumber          String       @unique @map("bkg_number")
+  clienteId          Int          @map("cliente_id")
+  navieraId          Int          @map("naviera_id")
+  buqueViaje         String?      @map("buque_viaje")
+  pol                String?
+  pod                String?
+  producto           String?
+  eta                DateTime?
+  cutoffDoc          DateTime?    @map("cutoff_doc")
+  cutoffFisico       DateTime?    @map("cutoff_fisico")
+  estado             String       @default("CONFIRMADO")
+  estadoDeclaracion  String       @default("FALTA") @map("estado_declaracion")
+  estadoVgm          String       @default("FALTA") @map("estado_vgm")
+  creadoEn           DateTime     @default(now()) @map("creado_en")
+  actualizadoEn      DateTime     @updatedAt @map("actualizado_en")
+
+  cliente            Cliente      @relation(fields: [clienteId], references: [id])
+  naviera            Naviera      @relation(fields: [navieraId], references: [id])
+  contenedores       Contenedor[]
+
+  @@map("bookings")
+}
+
+model Contenedor {
+  id         Int     @id @default(autoincrement())
+  bookingId  Int     @map("booking_id")
+  tipo       String
+  cantidad   Int
+
+  booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("contenedores")
+}
