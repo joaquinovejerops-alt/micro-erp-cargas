@@ -13,6 +13,7 @@ app.get('/api/health', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
+
 app.use('/api/auth', authRoutes);
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
