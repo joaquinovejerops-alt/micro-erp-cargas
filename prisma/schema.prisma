@@ -21,6 +21,10 @@ model Usuario {
   rol          String   @default("operador")
   creadoEn     DateTime @default(now()) @map("creado_en")
   historial   HistorialCambio[]
+  docOkDe            Booking[] @relation("DocOkPor")
+  zarpadoDe          Booking[] @relation("ZarpadoPor")
+  declaracionDe      Booking[] @relation("DeclaracionPor")
+  vgmDe              Booking[] @relation("VgmPor")
 
   @@map("usuarios")
 }
@@ -54,7 +58,16 @@ model Booking {
   eta                DateTime?
   cutoffDoc          DateTime?    @map("cutoff_doc")
   cutoffFisico       DateTime?    @map("cutoff_fisico")
-  estado             String       @default("CONFIRMADO")
+  documentacionOk    Boolean   @default(false) @map("documentacion_ok")
+  zarpado            Boolean   @default(false)
+  documentacionOkPor Int?      @map("documentacion_ok_por")
+  documentacionOkEn  DateTime? @map("documentacion_ok_en")
+  zarpadoPor         Int?      @map("zarpado_por")
+  zarpadoEn          DateTime? @map("zarpado_en")
+  declaracionPor     Int?      @map("declaracion_por")
+  declaracionEn      DateTime? @map("declaracion_en")
+  vgmPor             Int?      @map("vgm_por")
+  vgmEn              DateTime? @map("vgm_en")
   estadoDeclaracion  String       @default("FALTA") @map("estado_declaracion")
   estadoVgm          String       @default("FALTA") @map("estado_vgm")
   creadoEn           DateTime     @default(now()) @map("creado_en")
@@ -62,6 +75,10 @@ model Booking {
 
   cliente            Cliente      @relation(fields: [clienteId], references: [id])
   naviera            Naviera      @relation(fields: [navieraId], references: [id])
+  usuarioDocOk       Usuario? @relation("DocOkPor", fields: [documentacionOkPor], references: [id])
+  usuarioZarpado     Usuario? @relation("ZarpadoPor", fields: [zarpadoPor], references: [id])
+  usuarioDeclaracion Usuario? @relation("DeclaracionPor", fields: [declaracionPor], references: [id])
+  usuarioVgm         Usuario? @relation("VgmPor", fields: [vgmPor], references: [id])
   contenedores       Contenedor[]
   historial     HistorialCambio[]
 

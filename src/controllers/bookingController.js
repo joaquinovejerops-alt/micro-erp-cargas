@@ -204,4 +204,94 @@ async function editarBooking(req, res) {
   }
 }
 
-module.exports = { crearBooking, listarBookings, editarBooking };
+async function cambiarEstado(req, res) {
+  try {
+    const { id } = req.params;
+    const bookingId = parseInt(id, 10);
+
+    const actual = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!actual) {
+      return res.status(404).json({ error: 'Booking no encontrado' });
+    }
+
+    const { documentacionOk, zarpado, estadoDeclaracion, estadoVgm } = req.body;
+
+    // Valores permitidos para los estados de texto (String controlado)
+    const DECLA_VALIDOS = ['FALTA', 'HECHO', 'ENVIADO', 'EN_CORRECCION'];
+    const VGM_VALIDOS = ['FALTA', 'ENVIADO'];
+
+    const usuarioId = req.usuario.id;
+    const ahora = new Date();
+    const dataActualizar = {};
+
+    // --- documentacionOk (boolean) ---
+    if (documentacionOk !== undefined) {
+      if (typeof documentacionOk !== 'boolean') {
+        return res.status(400).json({ error: 'documentacionOk debe ser true o false' });
+      }
+      dataActualizar.documentacionOk = documentacionOk;
+      dataActualizar.documentacionOkPor = usuarioId;
+      dataActualizar.documentacionOkEn = ahora;
+    }
+
+    // --- zarpado (boolean) ---
+    if (zarpado !== undefined) {
+      if (typeof zarpado !== 'boolean') {
+        return res.status(400).json({ error: 'zarpado debe ser true o false' });
+      }
+      dataActualizar.zarpado = zarpado;
+      dataActualizar.zarpadoPor = usuarioId;
+      dataActualizar.zarpadoEn = ahora;
+    }
+
+    // --- estadoDeclaracion (texto controlado) ---
+    if (estadoDeclaracion !== undefined) {
+      if (!DECLA_VALIDOS.includes(estadoDeclaracion)) {
+        return res.status(400).json({
+          error: `estadoDeclaracion inválido. Valores: ${DECLA_VALIDOS.join(', ')}`,
+        });
+      }
+      dataActualizar.estadoDeclaracion = estadoDeclaracion;
+      dataActualizar.declaracionPor = usuarioId;
+      dataActualizar.declaracionEn = ahora;
+    }
+
+    // --- estadoVgm (texto controlado) ---
+    if (estadoVgm !== undefined) {
+      if (!VGM_VALIDOS.includes(estadoVgm)) {
+        return res.status(400).json({
+          error: `estadoVgm inválido. Valores: ${VGM_VALIDOS.join(', ')}`,
+        });
+      }
+      dataActualizar.estadoVgm = estadoVgm;
+      dataActualizar.vgmPor = usuarioId;
+      dataActualizar.vgmEn = ahora;
+    }
+
+    // Si no vino ningún estado para cambiar
+    if (Object.keys(dataActualizar).length === 0) {
+      return res.status(400).json({ error: 'No se envió ningún estado para actualizar' });
+    }
+
+    const bookingActualizado = await prisma.booking.update({
+      where: { id: bookingId },
+      data: dataActualizar,
+      include: {
+        cliente: true,
+        naviera: true,
+        contenedores: true,
+        usuarioDocOk: { select: { nombre: true } },
+        usuarioZarpado: { select: { nombre: true } },
+        usuarioDeclaracion: { select: { nombre: true } },
+        usuarioVgm: { select: { nombre: true } },
+      },
+    });
+
+    res.json(bookingActualizado);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error interno al cambiar el estado' });
+  }
+}
+
+module.exports = { crearBooking, listarBookings, editarBooking, cambiarEstado };
