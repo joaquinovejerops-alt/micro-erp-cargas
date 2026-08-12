@@ -20,6 +20,7 @@ model Usuario {
   passwordHash String   @map("password_hash")
   rol          String   @default("operador")
   creadoEn     DateTime @default(now()) @map("creado_en")
+  historial   HistorialCambio[]
 
   @@map("usuarios")
 }
@@ -62,6 +63,7 @@ model Booking {
   cliente            Cliente      @relation(fields: [clienteId], references: [id])
   naviera            Naviera      @relation(fields: [navieraId], references: [id])
   contenedores       Contenedor[]
+  historial     HistorialCambio[]
 
   @@map("bookings")
 }
@@ -75,4 +77,16 @@ model Contenedor {
   booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@map("contenedores")
+}
+
+model HistorialCambio {
+  id        Int      @id @default(autoincrement())
+  bookingId Int
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  cambios   Json
+  usuarioId Int
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  creadoEn  DateTime @default(now())
+
+  @@map("historial_cambios")
 }
