@@ -5,7 +5,7 @@ async function crearBooking(req, res) {
   try {
     const {
       bkgNumber, cliente, naviera, buqueViaje, pol, pod,
-      producto, eta, cutoffDoc, cutoffFisico, contenedores,
+      producto, subcliente, eta, cutoffDoc, cutoffFisico, contenedores,
     } = req.body;
 
     if (!bkgNumber || !cliente || !naviera) {
@@ -22,6 +22,7 @@ async function crearBooking(req, res) {
         pol,
         pod,
         producto,
+        subcliente,
         eta: eta ? new Date(eta) : null,
         cutoffDoc: cutoffDoc ? new Date(cutoffDoc) : null,
         cutoffFisico: cutoffFisico ? new Date(cutoffFisico) : null,
@@ -100,7 +101,7 @@ async function editarBooking(req, res) {
 
     const {
       cliente, naviera, buqueViaje, pol, pod,
-      producto, eta, cutoffDoc, cutoffFisico,
+      producto, subcliente, eta, cutoffDoc, cutoffFisico,
     } = req.body;
 
     const cambios = {};
@@ -123,6 +124,10 @@ async function editarBooking(req, res) {
     if (producto !== undefined && producto !== actual.producto) {
       cambios.producto = { de: actual.producto, a: producto };
       dataActualizar.producto = producto;
+    }
+    // subcliente: se puede editar pero NO va al historial (dato descriptivo)
+    if (subcliente !== undefined && subcliente !== actual.subcliente) {
+      dataActualizar.subcliente = subcliente;
     }
 
     // --- Fechas (comparadas como ISO string) ---
@@ -177,25 +182,37 @@ async function editarBooking(req, res) {
     }
 
     // --- Si no cambió nada, no tocamos la base ---
-    if (Object.keys(cambios).length === 0) {
+    if (Object.keys(cambios).length === 0 && Object.keys(dataActualizar).length === 0) {
       return res.status(200).json({ mensaje: 'No hubo cambios', booking: actual });
     }
 
-    // --- Actualizar booking + registrar historial en una transacción ---
-    const [bookingActualizado] = await prisma.$transaction([
+    // --- Armamos las operaciones de la transacción ---
+    // Siempre actualizamos el booking. El historial se crea SOLO si hay
+    // cambios auditables (si editaste solo el subcliente, cambios está vacío
+    // y no queremos una fila de historial vacía).
+    const operaciones = [
       prisma.booking.update({
         where: { id: bookingId },
         data: dataActualizar,
         include: { cliente: true, naviera: true, contenedores: true },
       }),
-      prisma.historialCambio.create({
-        data: {
-          bookingId: bookingId,
-          cambios: cambios,
-          usuarioId: req.usuario.id,
-        },
-      }),
-    ]);
+    ];
+
+    if (Object.keys(cambios).length > 0) {
+      operaciones.push(
+        prisma.historialCambio.create({
+          data: {
+            bookingId: bookingId,
+            cambios: cambios,
+            usuarioId: req.usuario.id,
+          },
+        })
+      );
+    }
+
+    const [bookingActualizado] = await prisma.$transaction(operaciones);
+
+    res.json(bookingActualizado);
 
     res.json(bookingActualizado);
   } catch (error) {

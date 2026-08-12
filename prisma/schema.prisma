@@ -55,6 +55,7 @@ model Booking {
   pol                String?
   pod                String?
   producto           String?
+  subcliente         String?
   eta                DateTime?
   cutoffDoc          DateTime?    @map("cutoff_doc")
   cutoffFisico       DateTime?    @map("cutoff_fisico")
