@@ -294,4 +294,30 @@ async function cambiarEstado(req, res) {
   }
 }
 
-module.exports = { crearBooking, listarBookings, editarBooking, cambiarEstado };
+async function obtenerHistorial(req, res) {
+  try {
+    const { id } = req.params;
+    const bookingId = parseInt(id, 10);
+
+    // Verificamos que el booking exista (para dar 404 claro si no)
+    const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking no encontrado' });
+    }
+
+    const historial = await prisma.historialCambio.findMany({
+      where: { bookingId: bookingId },
+      include: {
+        usuario: { select: { nombre: true } },
+      },
+      orderBy: { creadoEn: 'desc' },
+    });
+
+    res.json(historial);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error interno al obtener el historial' });
+  }
+}
+
+module.exports = { crearBooking, listarBookings, editarBooking, cambiarEstado, obtenerHistorial };
