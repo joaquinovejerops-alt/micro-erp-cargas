@@ -231,7 +231,7 @@ async function cambiarEstado(req, res) {
       return res.status(404).json({ error: 'Booking no encontrado' });
     }
 
-    const { documentacionOk, zarpado, estadoDeclaracion, estadoVgm } = req.body;
+    const { documentacionOk, zarpadoEn, estadoDeclaracion, estadoVgm } = req.body;
 
     // Valores permitidos para los estados de texto (String controlado)
     const DECLA_VALIDOS = ['FALTA', 'HECHO', 'ENVIADO', 'EN_CORRECCION'];
@@ -251,14 +251,22 @@ async function cambiarEstado(req, res) {
       dataActualizar.documentacionOkEn = ahora;
     }
 
-    // --- zarpado (boolean) ---
-    if (zarpado !== undefined) {
-      if (typeof zarpado !== 'boolean') {
-        return res.status(400).json({ error: 'zarpado debe ser true o false' });
+    // --- zarpado (ahora es una fecha real de zarpe) ---
+    // Enviar zarpadoEn con una fecha = marca el booking como zarpado ese día.
+    // Enviar zarpadoEn: null = desmarca (revierte el zarpado).
+    if (zarpadoEn !== undefined) {
+      if (zarpadoEn === null) {
+        // Desmarcar zarpado
+        dataActualizar.zarpadoEn = null;
+        dataActualizar.zarpadoPor = null;
+      } else {
+        const fecha = new Date(zarpadoEn);
+        if (isNaN(fecha.getTime())) {
+          return res.status(400).json({ error: 'zarpadoEn debe ser una fecha válida' });
+        }
+        dataActualizar.zarpadoEn = fecha;
+        dataActualizar.zarpadoPor = usuarioId;
       }
-      dataActualizar.zarpado = zarpado;
-      dataActualizar.zarpadoPor = usuarioId;
-      dataActualizar.zarpadoEn = ahora;
     }
 
     // --- estadoDeclaracion (texto controlado) ---
