@@ -46,6 +46,7 @@ async function resumen(req, res) {
     let totalFacturado = 0;
     let totalEgreso = 0;
     let totalContenedores = 0;
+    const contenedoresPorProducto = {}; // { "MANI": 12, "ALGODON": 8 }
 
     // --- Procesamos cada booking: sus totales de plata + su volumen ---
     const listado = bookings.map((b) => {
@@ -64,6 +65,10 @@ async function resumen(req, res) {
       totalFacturado += facturado;
       totalEgreso += egreso;
       totalContenedores += cantContenedores;
+
+      // Volumen por producto (para negociar con navieras)
+      const prod = b.producto || 'SIN PRODUCTO';
+      contenedoresPorProducto[prod] = (contenedoresPorProducto[prod] || 0) + cantContenedores;
 
       return {
         id: b.id,
@@ -88,6 +93,7 @@ async function resumen(req, res) {
       totales: {
         cantidadBookings: bookings.length,
         cantidadContenedores: totalContenedores,
+        contenedoresPorProducto,
         facturado: totalFacturado,
         egreso: totalEgreso,
         profit: totalFacturado - totalEgreso,
