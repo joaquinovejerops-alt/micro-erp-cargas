@@ -61,7 +61,6 @@ model Booking {
   cutoffDoc          DateTime?    @map("cutoff_doc")
   cutoffFisico       DateTime?    @map("cutoff_fisico")
   documentacionOk    Boolean   @default(false) @map("documentacion_ok")
-  zarpado            Boolean   @default(false)
   documentacionOkPor Int?      @map("documentacion_ok_por")
   documentacionOkEn  DateTime? @map("documentacion_ok_en")
   zarpadoPor         Int?      @map("zarpado_por")
