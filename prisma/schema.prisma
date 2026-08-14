@@ -21,6 +21,7 @@ model Usuario {
   rol          String   @default("operador")
   creadoEn     DateTime @default(now()) @map("creado_en")
   historial   HistorialCambio[]
+  movimientos   Movimiento[]
   docOkDe            Booking[] @relation("DocOkPor")
   zarpadoDe          Booking[] @relation("ZarpadoPor")
   declaracionDe      Booking[] @relation("DeclaracionPor")
@@ -82,6 +83,7 @@ model Booking {
   usuarioVgm         Usuario? @relation("VgmPor", fields: [vgmPor], references: [id])
   contenedores       Contenedor[]
   historial     HistorialCambio[]
+  movimientos   Movimiento[]
 
   @@map("bookings")
 }
@@ -107,4 +109,23 @@ model HistorialCambio {
   creadoEn  DateTime @default(now())
 
   @@map("historial_cambios")
+}
+
+model Movimiento {
+  id            Int       @id @default(autoincrement())
+  bookingId     Int       @map("booking_id")
+  tipo          String    // "INGRESO" | "EGRESO"
+  categoria     String?   // EGRESO: "LOCAL" | "FLETE" | "EXTRA"; null si INGRESO
+  proveedor     String?   // quién emitió la factura
+  descripcion   String    // detalle tal cual la naviera: "THC", "flete neto"...
+  montoOriginal Float     @map("monto_original")
+  moneda        String    @default("USD") // "USD" | "ARS"
+  tipoCambio    Float?    @map("tipo_cambio") // TC del día; null si ya es USD
+  montoUsd      Float     @map("monto_usd") // congelado al momento de cargar
+  usuarioId     Int       @map("usuario_id")
+  creadoEn      DateTime  @default(now()) @map("creado_en")
+  booking       Booking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id])
+
+  @@map("movimientos")
 }
