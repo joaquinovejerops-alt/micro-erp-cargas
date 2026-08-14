@@ -146,4 +146,103 @@ async function movimientosPorBooking(req, res) {
   }
 }
 
-module.exports = { crearMovimiento, movimientosPorBooking };
+// PUT /api/movimientos/:id — editar un movimiento (recalcula montoUsd)
+async function editarMovimiento(req, res) {
+  try {
+    const { id } = req.params;
+    const movimientoId = parseInt(id, 10);
+
+    const actual = await prisma.movimiento.findUnique({ where: { id: movimientoId } });
+    if (!actual) {
+      return res.status(404).json({ error: 'Movimiento no encontrado' });
+    }
+
+    const {
+      tipo, categoria, proveedor,
+      descripcion, montoOriginal, moneda, tipoCambio,
+    } = req.body;
+
+    // Usamos el valor nuevo si vino, o el actual si no (edición parcial)
+    const tipoFinal = tipo !== undefined ? tipo : actual.tipo;
+    const monedaFinal = moneda !== undefined ? moneda : actual.moneda;
+    const montoFinal = montoOriginal !== undefined ? montoOriginal : actual.montoOriginal;
+    const tcRecibido = tipoCambio !== undefined ? tipoCambio : actual.tipoCambio;
+    const descFinal = descripcion !== undefined ? descripcion : actual.descripcion;
+
+    // Validaciones (mismas reglas que crear)
+    if (!TIPOS_VALIDOS.includes(tipoFinal)) {
+      return res.status(400).json({ error: `tipo inválido. Valores: ${TIPOS_VALIDOS.join(', ')}` });
+    }
+
+    let categoriaFinal = null;
+    if (tipoFinal === 'EGRESO') {
+      const cat = categoria !== undefined ? categoria : actual.categoria;
+      if (!CATEGORIAS_VALIDAS.includes(cat)) {
+        return res.status(400).json({ error: `categoria inválida para egreso. Valores: ${CATEGORIAS_VALIDAS.join(', ')}` });
+      }
+      categoriaFinal = cat;
+    }
+
+    if (!descFinal || !descFinal.trim()) {
+      return res.status(400).json({ error: 'La descripción es obligatoria' });
+    }
+    if (typeof montoFinal !== 'number' || montoFinal <= 0) {
+      return res.status(400).json({ error: 'montoOriginal debe ser un número mayor a 0' });
+    }
+    if (!MONEDAS_VALIDAS.includes(monedaFinal)) {
+      return res.status(400).json({ error: `moneda inválida. Valores: ${MONEDAS_VALIDAS.join(', ')}` });
+    }
+
+    // Recalcular montoUsd
+    let montoUsd;
+    let tipoCambioFinal = null;
+    if (monedaFinal === 'USD') {
+      montoUsd = montoFinal;
+    } else {
+      if (typeof tcRecibido !== 'number' || tcRecibido <= 0) {
+        return res.status(400).json({ error: 'Para moneda ARS, el tipoCambio es obligatorio y debe ser mayor a 0' });
+      }
+      tipoCambioFinal = tcRecibido;
+      montoUsd = montoFinal / tcRecibido;
+    }
+
+    const actualizado = await prisma.movimiento.update({
+      where: { id: movimientoId },
+      data: {
+        tipo: tipoFinal,
+        categoria: categoriaFinal,
+        proveedor: proveedor !== undefined ? proveedor : actual.proveedor,
+        descripcion: descFinal.trim(),
+        montoOriginal: montoFinal,
+        moneda: monedaFinal,
+        tipoCambio: tipoCambioFinal,
+        montoUsd,
+      },
+    });
+
+    res.json(actualizado);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error interno al editar el movimiento' });
+  }
+}
+
+// DELETE /api/movimientos/:id — borrar un movimiento
+async function borrarMovimiento(req, res) {
+  try {
+    const { id } = req.params;
+    const movimientoId = parseInt(id, 10);
+
+    await prisma.movimiento.delete({ where: { id: movimientoId } });
+
+    res.json({ mensaje: 'Movimiento eliminado', id: movimientoId });
+  } catch (error) {
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'Movimiento no encontrado' });
+    }
+    console.error(error);
+    res.status(500).json({ error: 'Error interno al borrar el movimiento' });
+  }
+}
+
+module.exports = { crearMovimiento, movimientosPorBooking, editarMovimiento, borrarMovimiento };
