@@ -43,6 +43,7 @@ model Naviera {
   id        Int       @id @default(autoincrement())
   nombre    String    @unique
   bookings  Booking[]
+  regla     ReglaNaviera?
 
   @@map("navieras")
 }
@@ -127,4 +128,42 @@ model Movimiento {
   usuario       Usuario   @relation(fields: [usuarioId], references: [id])
 
   @@map("movimientos")
+}
+
+model ReglaNaviera {
+  id            Int             @id @default(autoincrement())
+  navieraId     Int?            @unique @map("naviera_id") // link opcional al catálogo Naviera
+  codigo        String          @unique // "MAERSK", "CMA_CGM", "PIL"...
+  nombre        String          // nombre legible de la naviera
+  emisores      Json            @default("[]") // textos para identificar la factura (array)
+  limpiezaRegex Json            @default("[]") @map("limpieza_regex") // [{patron, flags}]
+  promptExtra   String?         @map("prompt_extra") // instrucción extra para la IA (opcional)
+  notas         String?         // reglas especiales en texto
+  version       Int             @default(1)
+  activo        Boolean         @default(true)
+  creadoEn      DateTime        @default(now()) @map("creado_en")
+  actualizadoEn DateTime        @updatedAt @map("actualizado_en")
+
+  naviera       Naviera?        @relation(fields: [navieraId], references: [id])
+  conceptos     ReglaConcepto[]
+
+  @@map("reglas_navieras")
+}
+
+model ReglaConcepto {
+  id             Int          @id @default(autoincrement())
+  reglaNavieraId Int          @map("regla_naviera_id")
+  patron         String       // el concepto ya limpio, ej "OCEAN FREIGHT"
+  categoria      String       // "LOCAL" | "FLETE" | "EXTRA"
+  moneda         String       @default("USD")
+  tipoMatch      String       @default("includes") @map("tipo_match") // "includes" | "exact" | "regex"
+  origen         String       @default("SEMILLA") // "SEMILLA" | "APRENDIDO"
+  notas          String?
+  creadoEn       DateTime     @default(now()) @map("creado_en")
+  actualizadoEn  DateTime     @updatedAt @map("actualizado_en")
+
+  reglaNaviera   ReglaNaviera @relation(fields: [reglaNavieraId], references: [id], onDelete: Cascade)
+
+  @@unique([reglaNavieraId, patron]) // no repetir el mismo concepto en una naviera
+  @@map("reglas_conceptos")
 }

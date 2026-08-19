@@ -7,7 +7,7 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const navieraRoutes = require('./routes/navieraRoutes');
 const movimientoRoutes = require('./routes/movimientoRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
-
+const facturaRoutes = require('./routes/facturaRoutes');
 const app = express();
 
 app.use(cors());
@@ -25,6 +25,7 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/navieras', navieraRoutes);
 app.use('/api/movimientos', movimientoRoutes);
 app.use('/api/reportes', reporteRoutes);
+app.use('/api/facturas', facturaRoutes);
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
