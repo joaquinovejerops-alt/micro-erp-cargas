@@ -1,0 +1,50 @@
+/* frontend/src/index.css */
+:root {
+  --navy: #1a3352;
+  --blue: #3f7cae;
+  --bg: #f4f7fb;
+  --card: #ffffff;
+  --border: #dbe4ee;
+  --text: #23303d;
+  --muted: #6b7885;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+button {
+  cursor: pointer;
+  font-family: inherit;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--navy);
+  color: #fff;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+button.secundario { background: #e7edf4; color: var(--navy); }
+input, select {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 100%;
+  background: #fff;
+  color: var(--text);
+}
+label { font-size: 13px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 4px; }
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 22px; }
+.error { background: #fdecec; color: #b3261e; padding: 10px 12px; border-radius: 6px; font-size: 13px; margin: 10px 0; }
+
+/* tabla del preview */
+table.tabla { width: 100%; border-collapse: collapse; margin-top: 8px; }
+table.tabla th { text-align: left; font-size: 12px; color: var(--muted); padding: 6px 8px; border-bottom: 2px solid var(--border); }
+table.tabla td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
+table.tabla input, table.tabla select { padding: 6px 8px; }
+.small { font-size: 13px; color: var(--muted); }
