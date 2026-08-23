@@ -1,5 +1,7 @@
 const { PrismaClient } = require('../generated/prisma');
 const prisma = new PrismaClient();
+// pasa a MAYÚSCULAS y recorta espacios (respeta null/undefined)
+const up = (s) => (s == null ? s : String(s).trim().toUpperCase());
 
 async function crearBooking(req, res) {
   try {
@@ -17,12 +19,12 @@ async function crearBooking(req, res) {
 
     const nuevoBooking = await prisma.booking.create({
       data: {
-        bkgNumber: bkgNumber.trim(),
-        buqueViaje,
-        pol,
-        pod,
-        producto,
-        subcliente,
+        bkgNumber: up(bkgNumber),
+        buqueViaje: up(buqueViaje),
+        pol: up(pol),
+        pod: up(pod),
+        producto: up(producto),
+        subcliente: up(subcliente),
         eta: eta ? new Date(eta) : null,
         cutoffDoc: cutoffDoc ? new Date(cutoffDoc) : null,
         cutoffFisico: cutoffFisico ? new Date(cutoffFisico) : null,
@@ -69,6 +71,8 @@ async function listarBookings(req, res) {
         cliente: true,
         naviera: true,
         contenedores: true,
+        historial: { select: { cambios: true } },
+        declaraciones: true,
       },
       orderBy: [
         { eta: { sort: 'desc', nulls: 'first' } },
@@ -99,10 +103,16 @@ async function editarBooking(req, res) {
       return res.status(404).json({ error: 'Booking no encontrado' });
     }
 
-    const {
+    let {
       cliente, naviera, buqueViaje, pol, pod,
       producto, subcliente, eta, cutoffDoc, cutoffFisico,
     } = req.body;
+    // normalizar a MAYÚSCULAS (up() respeta undefined, no pisa lo que no vino)
+    buqueViaje = up(buqueViaje);
+    pol = up(pol);
+    pod = up(pod);
+    producto = up(producto);
+    subcliente = up(subcliente);
 
     const cambios = {};
     const dataActualizar = {};
@@ -214,7 +224,6 @@ async function editarBooking(req, res) {
 
     res.json(bookingActualizado);
 
-    res.json(bookingActualizado);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Error interno al editar el booking' });
@@ -345,4 +354,77 @@ async function obtenerHistorial(req, res) {
   }
 }
 
-module.exports = { crearBooking, listarBookings, editarBooking, cambiarEstado, obtenerHistorial };
+// ---- SPLIT: crear declaraciones hijas a partir de una madre ----
+async function splitBooking(req, res) {
+  try {
+    const bookingId = parseInt(req.params.id, 10);
+    const { hijas } = req.body; // [{ bkgNumber, c20, c40 }]
+    const madre = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { contenedores: true, declaraciones: true },
+    });
+    if (!madre) return res.status(404).json({ error: 'Booking no encontrado' });
+    if (madre.declaraciones.length > 0) return res.status(409).json({ error: 'Este booking ya está spliteado' });
+    if (!Array.isArray(hijas) || hijas.length < 2) return res.status(400).json({ error: 'Un split necesita al menos 2 declaraciones' });
+
+    const tot = (m) => (madre.contenedores.find((c) => String(c.tipo).includes(m))?.cantidad || 0);
+    const madre20 = tot('20'), madre40 = tot('40');
+    const sum20 = hijas.reduce((a, h) => a + (Number(h.c20) || 0), 0);
+    const sum40 = hijas.reduce((a, h) => a + (Number(h.c40) || 0), 0);
+    if (sum20 !== madre20 || sum40 !== madre40) {
+      return res.status(400).json({ error: `La suma no coincide con la madre (20': ${sum20}/${madre20}, 40': ${sum40}/${madre40})` });
+    }
+    for (const h of hijas) {
+      if (!h.bkgNumber || !h.bkgNumber.trim()) return res.status(400).json({ error: 'Cada declaración necesita su BKG' });
+    }
+
+    const letras = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    await prisma.$transaction(
+      hijas.map((h, i) => prisma.declaracion.create({
+        data: {
+          bookingId,
+          bkgNumber: up(h.bkgNumber),
+          sufijo: letras[i] || String(i + 1),
+          c20: Number(h.c20) || 0,
+          c40: Number(h.c40) || 0,
+        },
+      }))
+    );
+    const actualizado = await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: { cliente: true, naviera: true, contenedores: true, declaraciones: true },
+    });
+    res.status(201).json(actualizado);
+  } catch (error) {
+    if (error.code === 'P2002') return res.status(409).json({ error: 'Alguno de los BKG de las hijas ya existe' });
+    console.error(error);
+    res.status(500).json({ error: 'Error interno al splitear' });
+  }
+}
+
+// ---- cambiar DECLA/VGM de una declaración hija ----
+async function cambiarEstadoDeclaracion(req, res) {
+  try {
+    const declId = parseInt(req.params.id, 10);
+    const { estadoDeclaracion, estadoVgm } = req.body;
+    const DECLA_VALIDOS = ['FALTA', 'HECHO', 'ENVIADO', 'EN_CORRECCION'];
+    const VGM_VALIDOS = ['FALTA', 'ENVIADO'];
+    const data = {};
+    if (estadoDeclaracion !== undefined) {
+      if (!DECLA_VALIDOS.includes(estadoDeclaracion)) return res.status(400).json({ error: 'estadoDeclaracion inválido' });
+      data.estadoDeclaracion = estadoDeclaracion;
+    }
+    if (estadoVgm !== undefined) {
+      if (!VGM_VALIDOS.includes(estadoVgm)) return res.status(400).json({ error: 'estadoVgm inválido' });
+      data.estadoVgm = estadoVgm;
+    }
+    if (Object.keys(data).length === 0) return res.status(400).json({ error: 'Nada para actualizar' });
+    const decl = await prisma.declaracion.update({ where: { id: declId }, data });
+    res.json(decl);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error interno al actualizar la declaración' });
+  }
+}
+
+module.exports = { crearBooking, listarBookings, editarBooking, cambiarEstado, obtenerHistorial, splitBooking, cambiarEstadoDeclaracion };

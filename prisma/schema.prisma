@@ -84,6 +84,7 @@ model Booking {
   contenedores       Contenedor[]
   historial     HistorialCambio[]
   movimientos   Movimiento[]
+  declaraciones Declaracion[]
 
   @@map("bookings")
 }
@@ -97,6 +98,21 @@ model Contenedor {
   booking    Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 
   @@map("contenedores")
+}
+
+model Declaracion {
+  id                Int      @id @default(autoincrement())
+  bookingId         Int      @map("booking_id")
+  bkgNumber         String   @unique @map("bkg_number")
+  sufijo            String   // "A", "B", "C"...
+  c20               Int      @default(0)
+  c40               Int      @default(0)
+  estadoDeclaracion String   @default("FALTA") @map("estado_declaracion")
+  estadoVgm         String   @default("FALTA") @map("estado_vgm")
+  creadoEn          DateTime @default(now()) @map("creado_en")
+  booking           Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@map("declaraciones")
 }
 
 model HistorialCambio {

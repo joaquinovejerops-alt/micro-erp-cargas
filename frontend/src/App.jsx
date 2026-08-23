@@ -1,69 +1,36 @@
-// frontend/src/App.jsx
-import { useState } from "react";
-import { api, getToken, setToken, clearToken } from "./api";
+// src/App.jsx
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { getToken } from "./api";
+import Layout from "./components/Layout";
+import Login from "./pages/Login";
+import Embarques from "./pages/Embarques";
+import DetalleBKG from "./pages/DetalleBKG";
+import Placeholder from "./pages/Placeholder";
 import Facturas from "./Facturas";
 
-function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [cargando, setCargando] = useState(false);
-
-  async function entrar(e) {
-    e.preventDefault();
-    setError("");
-    setCargando(true);
-    try {
-      const data = await api.login(email, password);
-      setToken(data.token);
-      onLogin();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setCargando(false);
-    }
-  }
-
-  return (
-    <div style={{ maxWidth: 360, margin: "80px auto" }}>
-      <h1 style={{ color: "#1a3352", textAlign: "center", marginBottom: 24 }}>
-        ARPAFLU · ERP
-      </h1>
-      <form className="card" onSubmit={entrar}>
-        <div style={{ marginBottom: 14 }}>
-          <label>Email</label>
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
-        </div>
-        <div style={{ marginBottom: 18 }}>
-          <label>Contraseña</label>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required />
-        </div>
-        {error && <div className="error">{error}</div>}
-        <button type="submit" disabled={cargando} style={{ width: "100%" }}>
-          {cargando ? "Ingresando..." : "Ingresar"}
-        </button>
-      </form>
-    </div>
-  );
+function RequireAuth({ children }) {
+  return getToken() ? children : <Navigate to="/login" replace />;
 }
 
 export default function App() {
-  const [logueado, setLogueado] = useState(!!getToken());
-
-  function salir() {
-    clearToken();
-    setLogueado(false);
-  }
-
-  if (!logueado) return <Login onLogin={() => setLogueado(true)} />;
-
   return (
-    <div style={{ maxWidth: 900, margin: "40px auto", padding: "0 20px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <h1 style={{ color: "#1a3352", margin: 0 }}>ARPAFLU · ERP</h1>
-        <button className="secundario" onClick={salir}>Salir</button>
-      </div>
-      <Facturas />
-    </div>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route element={<RequireAuth><Layout /></RequireAuth>}>
+          <Route index element={<Navigate to="/embarques" replace />} />
+          <Route path="/embarques" element={<Embarques />} />
+          <Route path="/embarques/:id" element={<DetalleBKG />} />
+          <Route path="/facturas" element={<div className="page"><Facturas /></div>} />
+          <Route path="/dashboard" element={<Placeholder title="Dashboard" />} />
+          <Route path="/clientes" element={<Placeholder title="Clientes" />} />
+          <Route path="/navieras" element={<Placeholder title="Navieras / Agencias" />} />
+          <Route path="/facturacion" element={<Placeholder title="Facturación" />} />
+          <Route path="/tableros" element={<Placeholder title="Tableros" />} />
+          <Route path="/configuracion" element={<Placeholder title="Configuración" />} />
+        </Route>
+        <Route path="*" element={<Navigate to="/embarques" replace />} />
+      </Routes>
+    </BrowserRouter>
   );
 }

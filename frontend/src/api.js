@@ -1,6 +1,6 @@
 // frontend/src/api.js
 // Único punto de contacto con el backend. Adjunta el token JWT en cada request.
-const API_URL = "http://localhost:3000/api";
+const API_URL = "http://127.0.0.1:3000/api";
 
 export function getToken() {
   return localStorage.getItem("token");
@@ -41,5 +41,11 @@ export const api = {
   confirmarFactura: (payload) =>
     request("/facturas/confirmar", { method: "POST", body: payload }),
   listarBookings: () => request("/bookings"),
+  crearBooking: (data) => request("/bookings", { method: "POST", body: data }),
+  editarBooking: (id, data) => request(`/bookings/${id}`, { method: "PUT", body: data }),
+  cambiarEstado: (id, data) => request(`/bookings/${id}/estado`, { method: "PATCH", body: data }),
+  splitBooking: (id, data) => request(`/bookings/${id}/split`, { method: "POST", body: data }),
+  cambiarEstadoDeclaracion: (declId, data) => request(`/bookings/declaraciones/${declId}/estado`, { method: "PATCH", body: data }),
+  obtenerHistorial: (id) => request(`/bookings/${id}/historial`),
   listarReglas: () => request("/reglas"),
 };
